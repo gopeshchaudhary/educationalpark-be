@@ -1,5 +1,5 @@
 ﻿{
-    "connectionString": "mongodb://edupark_rw:edupark\@123#@172.20.3.22:27017/edupark",
+    "connectionString": "mongodb://edupark_prod:edupark_prod@172.20.3.22:27017/edupark",
     "apiUrl": "http://172.20.3.21:4000",
     "secret": "REPLACE THIS WITH YOUR OWN SECRET, IT CAN BE ANY STRING"
 }
