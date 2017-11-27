@@ -26,6 +26,8 @@ app.use(expressJwt({
 // routes
 app.use('/users', require('./controllers/users.controller'));
 app.use('/exam', require('./controllers/exam.controller'));
+app.use('/getprofile',require('./controllers/userProfile.controller'));
+app.use('/updateprofile', require('./controllers/userProfile.controller'));
 
 // start server
 var port = process.env.NODE_ENV === 'production' ? 80 : 4000;
