@@ -19,7 +19,7 @@ TOTP = function() {
     };
 
     var base32tohex = function(base32) {
-        var base32chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+        var base32chars = "1234567890";
         var bits = "";
         var hex = "";
         for(var i = 0; i < base32.length; i++) {
