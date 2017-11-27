@@ -9,7 +9,7 @@ var db = mongo.db(config.connectionString, { native_parser: true });
 db.bind('users');
 
 var totpObj = new TOTP();
-var otp = totpObj.getOTP("SECRET_HERE");
+var otp = totpObj.getOTP(config.secret);
 
 var otpservice = {};
 
@@ -19,11 +19,12 @@ otpservice.validate = validate;
 module.exports = otpservice;
 
 function generate() {
+    console.log('genrated otp ' + otp)
 
 }
 
 function validate() {
-    
+
 }
 
 function authenticate(username, password) {
