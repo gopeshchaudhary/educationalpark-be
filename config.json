@@ -4,4 +4,5 @@
     "secret": "REPLACE THIS WITH YOUR OWN SECRET, IT CAN BE ANY STRING",
     "otpservice" : "http://ppepos.filegstnow.com/MailService/v0.1/billing/otp",
     "emailservice" : "http://ppepos.filegstnow.com/MailService/v0.1/sendmail"
+
 }
