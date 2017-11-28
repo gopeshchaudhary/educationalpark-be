@@ -16,7 +16,7 @@ module.exports = service;
 
 function getUserProfile(username) {
     var deferred = Q.defer();
-    db.users.findOne({'username': username},function (err, user) {
+    db.users.findOne({'username': username}, function (err, user) {
         if (err) deferred.reject(err.name + ': ' + err.message);
         if (user) {
             deferred.resolve({
@@ -39,16 +39,28 @@ function updateUserProfile(userParam) {
     // validation
     db.users.findOne({'username': userParam.username}, function (err, user) {
         if (err) deferred.reject(err.name + ': ' + err.message);
-        if (user.hash !== bcrypt.hashSync(userParam.oldPassword, 10)) {
-            // passsword has changed so check if the new password is already taken
-                updateUser(user._id,userParam);
-                deferred.resolve(user);
-        } 
+        if (bcrypt.compareSync(userParam.oldPassword, user.hash)) {
+            if (!bcrypt.compareSync(userParam.oldPassword, bcrypt.hashSync(userParam.newPassword, 10))) {
+                // passsword has changed so check if the new password is already taken
+                updateUserPromise = updateUser(user._id, userParam);
+                updateUserPromise.then(function (response) {
+                    deferred.resolve(response);
+                }).catch(function (error) {
+                    deferred.reject(error);
+                });
+            } else {
+                deferred.reject({"name": userParam.username, "message": "no new password"});
+            }
+
+        } else {
+            deferred.reject({"name": userParam.username, "message": "old password is incorrect"});
+        }
     });
     return deferred.promise;
 }
 
-function updateUser(id,userParam) {
+function updateUser(id, userParam) {
+    var deferred = Q.defer();
     // fields to update
     var set = {
         pass: userParam.newPassword
@@ -56,13 +68,20 @@ function updateUser(id,userParam) {
     // update password if it was entered
     if (userParam.newPassword) {
         set.hash = bcrypt.hashSync(userParam.newPassword, 10);
+    } else {
+        deferred.reject({"name": userParam.username, "message": "update failed"});
     }
     db.users.update(
         {_id: mongo.helper.toObjectID(id)},
         {$set: set},
         function (err, doc) {
-        if (err) throw err.message;
-
-          
+            if (err) deferred.reject(err.name + ': ' + err.message);
+            if (doc) {
+                deferred.resolve({
+                    username: userParam.username,
+                    status: "updated"
+                });
+            }
         });
+    return deferred.promise;
 }

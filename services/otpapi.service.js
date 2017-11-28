@@ -2,13 +2,15 @@ var config = require('config.json');
 var _ = require('lodash');
 var jwt = require('jsonwebtoken');
 var bcrypt = require('bcryptjs');
+var request = require('request');
 var Q = require('q');
+var jsSHA = require('../helpers/sha1');
 var topOtp = require('../helpers/topgun');
 var mongo = require('mongoskin');
-var db = mongo.db(config.connectionString, { native_parser: true });
-db.bind('users');
+var db = mongo.db(config.connectionString, {native_parser: true});
+db.bind('otp');
 
-var totpObj = new TOTP();
+var totpObj = new TOTP(jsSHA);
 var otp = totpObj.getOTP(config.secret);
 
 var otpservice = {};
@@ -17,173 +19,95 @@ otpservice.generate = generate;
 otpservice.validate = validate;
 
 module.exports = otpservice;
-
-function generate() {
-    console.log('genrated otp ' + otp)
-
-}
-
-function validate() {
-
-}
-
-function authenticate(username, password) {
+function generate(username, mobileno) {
+    console.log(username, mobileno, 'genrated otp ' + otp);
     var deferred = Q.defer();
-
-    db.users.findOne({ username: username }, function (err, user) {
-        if (err) deferred.reject(err.name + ': ' + err.message);
-
-        if (user && bcrypt.compareSync(password, user.hash)) {
-            // authentication successful
-            deferred.resolve({
-                _id: user._id,
-                username: user.username,
-                firstName: user.firstName,
-                lastName: user.lastName,
-                token: jwt.sign({ sub: user._id }, config.secret)
-            });
-        } else {
-            // authentication failed
-            deferred.resolve();
-        }
-    });
-
-    return deferred.promise;
-}
-
-function getAll() {
-    var deferred = Q.defer();
-
-    db.users.find().toArray(function (err, users) {
-        if (err) deferred.reject(err.name + ': ' + err.message);
-
-        // return users (without hashed passwords)
-        users = _.map(users, function (user) {
-            return _.omit(user, 'hash');
-        });
-
-        deferred.resolve(users);
-    });
-
-    return deferred.promise;
-}
-
-function getById(_id) {
-    var deferred = Q.defer();
-
-    db.users.findById(_id, function (err, user) {
-        if (err) deferred.reject(err.name + ': ' + err.message);
-
-        if (user) {
-            // return user (without hashed password)
-            deferred.resolve(_.omit(user, 'hash'));
-        } else {
-            // user not found
-            deferred.resolve();
-        }
-    });
-
-    return deferred.promise;
-}
-
-function create(userParam) {
-    var deferred = Q.defer();
-
-    // validation
-    db.users.findOne(
-        { username: userParam.username },
-        function (err, user) {
+    otpresponse = makeAPICall(otp, mobileno);
+    otpresponse.then(function (response) {
+        db.otp.insert({
+            username: username,
+            mobileno: mobileno,
+            otp: otp,
+            timestamp: new Date().toISOString(),
+            apiresponse: response
+        }, function (err, success) {
             if (err) deferred.reject(err.name + ': ' + err.message);
-
-            if (user) {
-                // username already exists
-                deferred.reject('Username "' + userParam.username + '" is already taken');
+            if (success) {
+                // authentication successful
+                deferred.resolve({
+                    username: username,
+                    otp: "success"
+                });
             } else {
-                createUser();
+                // otp failed
+                deferred.resolve();
             }
         });
-
-    function createUser() {
-        // set user object to userParam without the cleartext password
-        var user = _.omit(userParam, 'password');
-
-        // add hashed password to user object
-        user.hash = bcrypt.hashSync(userParam.password, 10);
-
-        db.users.insert(
-            user,
-            function (err, doc) {
-                if (err) deferred.reject(err.name + ': ' + err.message);
-
-                deferred.resolve();
-            });
-    }
-
+    }).catch(function (err) {
+        deferred.reject(err)
+    });
     return deferred.promise;
 }
 
-function update(_id, userParam) {
+function validate(username, otp) {
     var deferred = Q.defer();
-
-    // validation
-    db.users.findById(_id, function (err, user) {
-        if (err) deferred.reject(err.name + ': ' + err.message);
-
-        if (user.username !== userParam.username) {
-            // username has changed so check if the new username is already taken
-            db.users.findOne(
-                { username: userParam.username },
-                function (err, user) {
+    console.log(username,otp);
+    db.otp.findOne({
+        username: username,
+        otp: otp
+    }, function (err, success) {
+        if (err) {
+            db.otp.remove({"username": username});
+            deferred.reject(err.name + ': ' + err.message);
+        }
+        if (success) {
+            // authentication successful
+            db.otp.update(
+                {"name": username},
+                {
+                    $set: {"status": "verified"}
+                }
+                , function (err, success) {
                     if (err) deferred.reject(err.name + ': ' + err.message);
-
-                    if (user) {
-                        // username already exists
-                        deferred.reject('Username "' + req.body.username + '" is already taken')
-                    } else {
-                        updateUser();
+                    if (success) {
+                        deferred.resolve({
+                            username: username,
+                            status: "verified"
+                        });
                     }
                 });
         } else {
-            updateUser();
+            // otp failed
+            db.otp.remove({"username": username});
+            deferred.resolve({
+                username: username,
+                status: "failed"
+            });
         }
     });
-
-    function updateUser() {
-        // fields to update
-        var set = {
-            firstName: userParam.firstName,
-            lastName: userParam.lastName,
-            username: userParam.username,
-        };
-
-        // update password if it was entered
-        if (userParam.password) {
-            set.hash = bcrypt.hashSync(userParam.password, 10);
-        }
-
-        db.users.update(
-            { _id: mongo.helper.toObjectID(_id) },
-            { $set: set },
-            function (err, doc) {
-                if (err) deferred.reject(err.name + ': ' + err.message);
-
-                deferred.resolve();
-            });
-    }
-
     return deferred.promise;
 }
 
-function _delete(_id) {
+function makeAPICall(otp, mobileno) {
     var deferred = Q.defer();
-
-    db.users.remove(
-        { _id: mongo.helper.toObjectID(_id) },
-        function (err) {
-            if (err) deferred.reject(err.name + ': ' + err.message);
-
-            deferred.resolve();
-        });
-
+    request.post(
+        config.otpservice,
+        {
+            json: {
+                "otpcontent": " Hello, your OTP for this registration is " + otp,
+                "mobilenumber": mobileno,
+                "username": "edu portal"
+            }
+        },
+        function (error, response, body) {
+            if (!error && response.statusCode == 200) {
+                if (body) {
+                    deferred.resolve(JSON.stringify(body));
+                }
+            } else {
+                deferred.reject('ERROR WHILE SENDING OTP');
+            }
+        }
+    );
     return deferred.promise;
 }

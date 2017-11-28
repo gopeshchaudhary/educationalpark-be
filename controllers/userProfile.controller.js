@@ -4,12 +4,16 @@ var router = express.Router();
 var profileService = require('services/profile.service');
 
 // routes for get profile
-router.post('/getprofile', getProfile);
-router.post('/', updateProfile);
+router.post('/get', getProfile);
+router.post('/update', updateProfile);
 
 module.exports = router;
 
 function getProfile(req, res) {
+    if(!req.body.username){
+        res.status(200).send('{"error" : "Required params not found" }');
+        return false;
+    }
     if (req.body.username) {
         profileService.getUserProfile(req.body.username) /// user  will get exam id for the session .
             .then(function (profileData) {
@@ -23,19 +27,16 @@ function getProfile(req, res) {
     }
 }
 
-
-
-
 function updateProfile(req, res) {
-   
+    if(!req.body){
+        res.status(200).send('{"error" : "Required params not found" }');
+        return false;
+    }
     profileService.updateUserProfile(req.body)
-        .then(function () {
-            console.log(res);
-            console.log('success');
-            res.status(200).send('Succesfully changed password');
+        .then(function (response) {
+            res.send(response);
         })
         .catch(function (err) {
-            console.log(err);
             res.status(400).send(err);
         });
 }

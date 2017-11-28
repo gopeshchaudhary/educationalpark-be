@@ -8,7 +8,7 @@ var bcrypt = require('bcryptjs');
 var Q = require('q');
 var mongo = require('mongoskin');
 var db = mongo.db(config.connectionString, {native_parser: true});
-db.bind('modules');
+db.bind('exammodules');
 
 
 var examservice = {};
@@ -20,7 +20,7 @@ module.exports = examservice;
 
 function getExamSet(moduleid) {
     var deferred = Q.defer();
-    db.modules.find({'moduleid': moduleid}).toArray(function (err, module) {
+    db.exammodules.find({'moduleid': moduleid}).toArray(function (err, module) {
         if (err) deferred.reject(err.name + ': ' + err.message);
         if (module) {
             // return module (without hashed password)
