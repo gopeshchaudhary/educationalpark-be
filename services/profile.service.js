@@ -60,9 +60,7 @@ function updateUserProfile(userParam) {
 function updateUser(id, userParam) {
     var deferred = Q.defer();
     // fields to update
-    var set = {
-        pass: userParam.newPassword
-    };
+    var set = {};
     // update password if it was entered
     if (userParam.newPassword) {
         set.hash = bcrypt.hashSync(userParam.newPassword, 10);
@@ -87,8 +85,8 @@ function updateUser(id, userParam) {
 function initProfile(username){
     var deferred = Q.defer();
     // fields to insert
-    db.collection('moduleinfo').find({},function () {
-        
+    db.collection('moduleinfo').find({}).toArray(function (err,status) {
+       console.log(status);
     });
     var set = {
         pass: userParam.newPassword
