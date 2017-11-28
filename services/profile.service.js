@@ -22,7 +22,7 @@ function getUserProfile(username) {
             deferred.resolve({
                 _id: user._id,
                 username: user.username,
-                userName: user.userName,
+                emailID: user.emailID,
                 phoneNo: user.phoneNo
             });
         } else {
@@ -32,8 +32,7 @@ function getUserProfile(username) {
     });
     return deferred.promise;
 }
-
-// profile update for corresponding user 
+// profile update for corresponding user
 function updateUserProfile(userParam) {
     var deferred = Q.defer();
     // validation
@@ -58,10 +57,39 @@ function updateUserProfile(userParam) {
     });
     return deferred.promise;
 }
-
 function updateUser(id, userParam) {
     var deferred = Q.defer();
     // fields to update
+    var set = {
+        pass: userParam.newPassword
+    };
+    // update password if it was entered
+    if (userParam.newPassword) {
+        set.hash = bcrypt.hashSync(userParam.newPassword, 10);
+    } else {
+        deferred.reject({"name": userParam.username, "message": "update failed"});
+    }
+    db.users.update(
+        {_id: mongo.helper.toObjectID(id)},
+        {$set: set},
+        function (err, doc) {
+            if (err) deferred.reject(err.name + ': ' + err.message);
+            if (doc) {
+                deferred.resolve({
+                    username: userParam.username,
+                    status: "updated"
+                });
+            }
+        });
+    return deferred.promise;
+}
+
+function initProfile(username){
+    var deferred = Q.defer();
+    // fields to insert
+    db.collection('moduleinfo').find({},function () {
+        
+    });
     var set = {
         pass: userParam.newPassword
     };

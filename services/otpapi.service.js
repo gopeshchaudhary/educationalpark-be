@@ -17,11 +17,17 @@ var otpservice = {};
 
 otpservice.generate = generate;
 otpservice.validate = validate;
+otpservice.sendmail = sendmail;
 
 module.exports = otpservice;
 function generate(username, mobileno) {
-    console.log(username, mobileno, 'genrated otp ' + otp);
     var deferred = Q.defer();
+    db.collection('users').findOne({username: username}, function (err, user) {
+        if (user) {
+            // user exists
+            deferred.reject({"name": username, "message": "user already exists"});
+        }
+    });
     otpresponse = makeAPICall(otp, mobileno);
     otpresponse.then(function (response) {
         db.otp.insert({
@@ -44,14 +50,12 @@ function generate(username, mobileno) {
             }
         });
     }).catch(function (err) {
-        deferred.reject(err)
+        deferred.reject({"name": username, "message": err})
     });
     return deferred.promise;
 }
-
 function validate(username, otp) {
     var deferred = Q.defer();
-    console.log(username,otp);
     db.otp.findOne({
         username: username,
         otp: otp
@@ -79,15 +83,14 @@ function validate(username, otp) {
         } else {
             // otp failed
             db.otp.remove({"username": username});
-            deferred.resolve({
-                username: username,
-                status: "failed"
+            deferred.reject({
+                name: username,
+                message: "failed"
             });
         }
     });
     return deferred.promise;
 }
-
 function makeAPICall(otp, mobileno) {
     var deferred = Q.defer();
     request.post(
@@ -106,6 +109,56 @@ function makeAPICall(otp, mobileno) {
                 }
             } else {
                 deferred.reject('ERROR WHILE SENDING OTP');
+            }
+        }
+    );
+    return deferred.promise;
+}
+function sendmail(username, mobileno, email) {
+    var deferred = Q.defer();
+    emailresponse = sendMailAPI(username, mobileno, email);
+    emailresponse.then(function (response) {
+        db.collection('users').insert({
+            username: username,
+            phoneNo: mobileno,
+            emailID: email,
+            timestamp: new Date().toISOString(),
+            hash: bcrypt.hashSync(response.password, 10)
+        }, function (err, success) {
+            if (err) deferred.reject(err.name + ': ' + err.message);
+            if (success) {
+                deferred.resolve({
+                    username: username,
+                    emailsend: "success"
+                });
+            } else {
+                deferred.resolve();
+            }
+        });
+    }).catch(function (err) {
+        deferred.reject({"name": username, "message": err})
+    });
+    return deferred.promise;
+}
+function sendMailAPI(username, mobileno, email) {
+    var deferred = Q.defer();
+    var randomstring = Math.random().toString(36).slice(-8);
+    var content = " Hello " + username + ",\n Thanks for registering on Edupark , Your Mobile Number is " + mobileno + " . \nYour password is : " + randomstring +" \n Enjoy our services.";
+    request.post(
+        config.emailservice,
+        {
+            json: {
+                "content": content ,
+                "emailId": email,
+            }
+        },
+        function (error, response, body) {
+            if (!error && response.statusCode == 200) {
+                if (body) {
+                    deferred.resolve({'password': randomstring});
+                }
+            } else {
+                deferred.reject('ERROR WHILE SENDING EMAIL');
             }
         }
     );
