@@ -1,7 +1,8 @@
 /**
  * Created by tigerking on 21/11/17.
  */
-TOTP = function() {
+
+TOTP = function(jsSHA) {
 
     var dec2hex = function(s) {
         return (s < 15.5 ? "0" : "") + Math.round(s).toString(16);
