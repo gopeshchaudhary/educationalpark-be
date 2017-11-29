@@ -6,6 +6,7 @@ var _ = require('lodash');
 var jwt = require('jsonwebtoken');
 var bcrypt = require('bcryptjs');
 var Q = require('q');
+var videoService = require('./video.service');
 var mongo = require('mongoskin');
 var db = mongo.db(config.connectionString, {
     native_parser: true
@@ -87,13 +88,46 @@ function compareResult(response, request) {
         var percentage = count * 100 / response.result.length;
         if (percentage >= 60) {
             status = 'pass';
+            deferred.resolve({
+                'totalResult': percentage,
+                'status': status
+            });
         } else {
             status = 'fail';
+            var modulePromise = videoService.findmodule(request.moduleid);
+            modulePromise.then(function(errorModule,responseModule){
+                if(errorModule) deferred.reject(errorModule.name + ': ' + errorModule.message);
+                if(responseModule){
+                    db.collection(responseModule.collection).find({  
+                        'userid': request.username
+                    }).toArray(function (err, video) {
+                        if (err) deferred.reject(err.name + ': ' + err.message);
+                        if (video) {
+                            updateStatusPromise = updateStatus(responseModule.collection, video,status,percentage);
+                            updateStatusPromise.then(function (response) {
+                                deferred.resolve(response);
+                            }).catch(function (error) {
+                                deferred.reject(error);
+                            });
+                        } else {
+                            // aut  hentication failed
+                            deferred.reject({
+                                'videoid': body.videoid,
+                                'message': "there is no video regarding username"
+                            });
+                        }
+                    });
+                }else{
+                    deferred.reject({
+                        'videoid': request.moduleid,
+                        'message': "there is no module"
+                    });
+                }
+            })
+
+           
         }
-        deferred.resolve({
-            'totalResult': percentage,
-            'status': status
-        });
+        
     } else {
         deferred.reject({
             'error': 'question length is not proper'
@@ -101,3 +135,26 @@ function compareResult(response, request) {
     }
     return deferred.promise;
 }
+
+function updateStatus(collectionData,videoArray,status,percentage){
+    var deferred = Q.defer();
+    // fields to update
+    var set = {
+        videostatus: 'not watch'
+    };
+    db.collection(collectionData).update({
+        $set:set
+      },
+      { multi: true},
+    function (err, doc) {
+       if(err) deferred.reject(err.name + ': ' + err.message);
+       if(doc){
+        deferred.resolve({
+            'totalResult': percentage,
+            'status': status,
+            allVideo:'false'
+        });
+       }
+    });
+    return deferred.promise;
+};
