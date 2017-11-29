@@ -28,6 +28,7 @@ app.use(expressJwt({
 app.use('/users', require('./controllers/users.controller'));
 app.use('/exam', require('./controllers/exam.controller'));
 app.use('/auth', require('./controllers/auth.controller'));
+app.use('/video',require('./controllers/video.controller'));
 app.use('/profile',require('./controllers/userProfile.controller'));
 
 // start server

@@ -15,6 +15,7 @@ service.getById = getById;
 service.create = create;
 service.update = update;
 service.delete = _delete;
+service.checkUserName = checkUserName;
 
 module.exports = service;
 
@@ -174,5 +175,17 @@ function _delete(_id) {
             deferred.resolve();
         });
 
+    return deferred.promise;
+}
+ 
+// function is used to checkusername exist or not 
+function checkUserName(username){
+ var deferred = Q.defer();
+    db.users.findOne({username: username},  (err, userData)=> {
+        if(userData){
+            flag =  true;
+            deferred.resolve(true);
+        };
+    });
     return deferred.promise;
 }
