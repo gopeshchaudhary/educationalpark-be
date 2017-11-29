@@ -13,6 +13,10 @@ router.post('/getexam', getExam);
 module.exports = router;
 
 function getExam(req, res) {
+    if (!req.body.moduleid) {
+        res.status(200).send('{"error" : "Required params not found" }');
+        return false;
+    }
     examservice.getExamSet(req.body.moduleid)   /// user  will get exam id for the session .
         .then(function (examset) {
             res.send(examset);

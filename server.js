@@ -7,7 +7,7 @@ var expressJwt = require('express-jwt');
 var config = require('config.json');
 
 app.use(cors());
-app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.urlencoded({extended: false}));
 app.use(bodyParser.json());
 
 // use JWT auth to secure the api, the token can be passed in the authorization header or querystring
@@ -21,14 +21,14 @@ app.use(expressJwt({
         }
         return null;
     }
-}).unless({ path: ['/users/authenticate', '/users/register', '/auth/generate', '/auth/verify'] }));
+}).unless({path: ['/users/authenticate', '/auth/generate', '/auth/verify', '/auth/sendmail']}));
 
 
 // routes
 app.use('/users', require('./controllers/users.controller'));
 app.use('/exam', require('./controllers/exam.controller'));
 app.use('/auth', require('./controllers/auth.controller'));
-app.use('/profile',require('./controllers/userProfile.controller'));
+app.use('/profile', require('./controllers/userProfile.controller'));
 
 // start server
 var port = process.env.NODE_ENV === 'production' ? 80 : 4000;

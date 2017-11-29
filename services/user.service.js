@@ -23,7 +23,6 @@ function authenticate(username, password) {
 
     db.users.findOne({username: username}, function (err, user) {
         if (err) deferred.reject(err.name + ': ' + err.message);
-        console.log(user);
         if (user && bcrypt.compareSync(password, user.hash)) {
             // authentication successful
             deferred.resolve({
@@ -142,7 +141,7 @@ function update(_id, userParam) {
         var set = {
             firstName: userParam.firstName,
             lastName: userParam.lastName,
-            username: userParam.username,
+            username: userParam.username
         };
 
         // update password if it was entered
