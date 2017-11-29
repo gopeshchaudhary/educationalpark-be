@@ -24,7 +24,6 @@ function authenticate(username, password) {
 
     db.users.findOne({username: username}, function (err, user) {
         if (err) deferred.reject(err.name + ': ' + err.message);
-        console.log(user);
         if (user && bcrypt.compareSync(password, user.hash)) {
             // authentication successful
             deferred.resolve({
@@ -143,7 +142,7 @@ function update(_id, userParam) {
         var set = {
             firstName: userParam.firstName,
             lastName: userParam.lastName,
-            username: userParam.username,
+            username: userParam.username
         };
 
         // update password if it was entered
@@ -177,15 +176,15 @@ function _delete(_id) {
 
     return deferred.promise;
 }
- 
+
 // function is used to checkusername exist or not 
-function checkUserName(username){
- var deferred = Q.defer();
-    db.users.findOne({username: username},  (err, userData)=> {
-        if(userData){
-            flag =  true;
+function checkUserName(username) {
+    var deferred = Q.defer();
+    db.users.findOne({username: username}, function (err, userData) {
+        if (userData) {
+            flag = true;
             deferred.resolve(true);
-        };
+        }
     });
     return deferred.promise;
 }

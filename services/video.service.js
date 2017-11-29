@@ -14,20 +14,20 @@ videoService.videoUpdateStatus = videoUpdateStatus;
 
 module.exports = videoService;
 // function for video update 
-function videoUpdateStatus(body) {
+function videoUpdateStatus(username, videoid, moduleid) {
     var deferred = Q.defer();
     var selectedCollection = '';
-    if (userService.checkUserName(body.username)) {
-        var collectionData = findmodule(body.moduleid);
+    if (userService.checkUserName(username)) {
+        var collectionData = findmodule(moduleid);
         collectionData.then(function (res) {
             selectedCollection = res.collection;
             db.collection(selectedCollection).findOne({
-                'videoid': body.videoid,
-                'userid': body.username
+                'videoid': videoid,
+                'userid': username
             }, function (err, video) {
                 if (err) deferred.reject(err.name + ': ' + err.message);
                 if (video) {
-                    updateStatusPromise = updateStatus(selectedCollection, video._id,body.moduleid);
+                    updateStatusPromise = updateStatus(selectedCollection, video._id, moduleid);
                     updateStatusPromise.then(function (response) {
                         deferred.resolve(response);
                     }).catch(function (error) {
@@ -36,7 +36,7 @@ function videoUpdateStatus(body) {
                 } else {
                     // aut  hentication failed
                     deferred.reject({
-                        'videoid': body.videoid,
+                        'videoid': videoid,
                         'message': "there is no video regarding username"
                     });
                 }
@@ -44,12 +44,12 @@ function videoUpdateStatus(body) {
         });
     } else {
         deferred.reject({
-            'username': body.username,
+            'username': username,
             'message': 'username is not found'
         });
     }
     return deferred.promise;
-};
+}
 
 function findmodule(moduleid) {
     var deferred = Q.defer();
@@ -67,7 +67,7 @@ function findmodule(moduleid) {
     return deferred.promise;
 }
 
-function updateStatus(selectedCollection,id,moduleid) {
+function updateStatus(selectedCollection, id, moduleid) {
     var deferred = Q.defer();
     // fields to update
     var set = {
@@ -86,36 +86,36 @@ function updateStatus(selectedCollection,id,moduleid) {
                     'modulecode': moduleid,
                 }).toArray(function (err, res) {
                     if (err) deferred.reject(err.name + ': ' + err.message);
-                    if(res){
-                        db.collection(selectedCollection).find({'videostatus':'watched'}).toArray(function (err,watchedVideo){
-                            if(err) deferred.reject(err.name + ':'+ err.message);
-                            if(watchedVideo.length===res.length){
+                    if (res) {
+                        db.collection(selectedCollection).find({'videostatus': 'watched'}).toArray(function (err, watchedVideo) {
+                            if (err) deferred.reject(err.name + ':' + err.message);
+                            if (watchedVideo.length === res.length) {
                                 deferred.resolve({
                                     videoStatus: "updated",
-                                    allVideo:'true'
+                                    allVideo: 'true'
                                 });
-                            }else{
+                            } else {
                                 deferred.resolve({
                                     videoStatus: "updated",
-                                    allVideo:'false'
+                                    allVideo: 'false'
                                 });
                             }
                         })
-                    }else{
+                    } else {
                         deferred.reject({
-                            'error':moduleid,
-                            'message':'there is no video regarding module'
+                            'error': moduleid,
+                            'message': 'there is no video regarding module'
                         });
                     }
                 });
 
-                
-            }else{
+
+            } else {
                 deferred.reject({
-                    'error':moduleid,
-                    'message':'there is error in update'
+                    'error': moduleid,
+                    'message': 'there is error in update'
                 });
             }
         });
     return deferred.promise;
-};
+}
