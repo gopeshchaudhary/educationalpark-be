@@ -140,7 +140,7 @@ function updateStatus(collectionData,videoArray,status,percentage){
     var deferred = Q.defer();
     // fields to update
     var set = {
-        videostatus: 'not watch'
+        videostatus: 'notwatched'
     };
     db.collection(collectionData).update({
         $set:set
