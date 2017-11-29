@@ -21,7 +21,7 @@ app.use(expressJwt({
         }
         return null;
     }
-}).unless({ path: ['/users/authenticate', '/users/register', '/auth/generate', '/auth/verify', '/auth/sendmail'] }));
+}).unless({ path: ['/users/authenticate', '/auth/generate', '/auth/verify', '/auth/sendmail'] }));
 
 
 // routes
