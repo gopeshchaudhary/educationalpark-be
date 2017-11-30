@@ -109,28 +109,51 @@ function initProfile(username) {
 }
 
 function filterme(response) {
+    var deferred = Q.defer();
     modules = response.modules;
     var temp = [];
-    var finalmodule = false;
-    for (var key in modules) {
-        var module = modules[key];
-        var videolist = module.videolist;
-        for (var videokey in videolist) {
-            var videoinfo = videolist[videokey];
-            if (videoinfo.status === 'notwatched') {
-                finalmodule = true;
-                break;
+    waitpromise = checkIfTestDone(response.user);
+    waitpromise.then(function (latestPassModule) {
+        var finalmodule = false;
+        var lastpass = false;
+        for (var key in modules) {
+            var module = modules[key];
+            var videolist = module.videolist;
+            if (latestPassModule && latestPassModule === module.moduleid) {
+                lastpass = true;
+            } else
+                lastpass = true;
+            for (var videokey in videolist) {
+                var videoinfo = videolist[videokey];
+                if (lastpass || videoinfo.status === 'notwatched') {
+                    finalmodule = true;
+                    break;
+                }
             }
+            temp.push(module);
+            if (finalmodule)
+                break;
         }
-        temp.push(module);
-        if (finalmodule)
-            break;
-    }
-    response.modules = temp;
-    return response;
-}
-function checkIfTestDone(username,moduleid) {
+        response.modules = temp;
+        deferred.resolve(response);
+    }).catch(function () {
 
+    });
+    return deferred.promise;
+}
+
+function checkIfTestDone(username) {
+    var deferred = Q.defer();
+    db.collection("exam_result").find({
+        "userid": username
+    }).sort({_id: -1}).limit(1).toArray(function (examResulterr, examResult) {
+        if (examResult.length) {
+            deferred.resolve(examResult[0].moduleid);
+        } else {
+            deferred.resolve(false);
+        }
+    });
+    return deferred.promise;
 }
 
 function doit(username, modules, response) {
@@ -141,8 +164,12 @@ function doit(username, modules, response) {
     var complete = function () {
         completed++;
         if (completed === modules.length) {
-
-            deferred.resolve(filterme(response));
+            filtermePromise = filterme(response);
+            filtermePromise.then(function (response) {
+                deferred.resolve(response);
+            }).catch(function (err) {
+                deferred.reject(err);
+            })
         }
     };
     modules.forEach(function (moduleObj) {
