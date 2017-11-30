@@ -108,42 +108,78 @@ function initProfile(username) {
     return deferred.promise;
 }
 
+function filterme(response) {
+    modules = response.modules;
+    var temp = [];
+    var finalmodule = false;
+    for (var key in modules) {
+        var module = modules[key];
+        var videolist = module.videolist;
+        for (var videokey in videolist) {
+            var videoinfo = videolist[videokey];
+            if (videoinfo.status === 'notwatched') {
+                finalmodule = true;
+                break;
+            }
+        }
+        temp.push(module);
+        if (finalmodule)
+            break;
+    }
+    response.modules = temp;
+    return response;
+}
+
+function doit(username, modules, response) {
+    var deferred = Q.defer();
+    var completed = 0;
+    var regex = /mod(.*)/;
+    response.modules = {};
+    var complete = function () {
+        completed++;
+        if (completed === modules.length) {
+
+            deferred.resolve(filterme(response));
+        }
+    };
+    modules.forEach(function (moduleObj) {
+        var module = moduleObj.moduleid;
+        var collection = moduleObj.collection;
+        db.collection('videorecord').find({"modulecode": module}).sort({"modulecode": 1}).toArray(function (err, videos) {
+            if (videos.length) {
+                var videoList = {};
+                videos.forEach(function (videoObj) {
+                    videoList[videoObj.videoID] = {};
+                    videoList[videoObj.videoID].url = videoObj.path_video;
+                });
+                db.collection(collection).find({"userid": username}).sort({"videoid": 1}).toArray(function (err, usermoudleinfo) {
+                    if (usermoudleinfo.length) {
+                        usermoudleinfo.forEach(function (usermoduleObj) {
+                            videoList[usermoduleObj.videoid].status = usermoduleObj.videostatus;
+                        });
+                        response.modules[module.match(regex)[1]] = {"moduleid": module, "videolist": videoList};
+                        complete();
+                    } else {
+                        deferred.reject({"name": username, "message": "No Video Info Found In Module"});
+                    }
+                });
+            }
+        });
+    });
+    return deferred.promise;
+}
+
 function getDashboard(username, sectionid) {
     var deferred = Q.defer();
     // get the modules
-    db.collection('moduleinfo').find({"sectionid": sectionid}).toArray(function (err, modules) {
+    db.collection('moduleinfo').find({"sectionid": sectionid}).sort({"moduleid": 1}).toArray(function (err, modules) {
         if (modules.length) {
             var response = {"user": username, "section": sectionid};
-            modules.forEach(function (moduleObj) {
-                var module = moduleObj.moduleid;
-                var collection = moduleObj.collection;
-                response.modules = [];
-                db.collection('videorecord').find({"modulecode": module}).toArray(function (err, videos) {
-                    if (videos.length) {
-                        var videoList = {};
-                        videos.forEach(function (videoObj) {
-                            videoList[videoObj.videoID] = {};
-                            videoList[videoObj.videoID].url = videoObj.path_video;
-                        });
-                        db.collection(collection).find({"userid": username}).toArray(function (err, usermoudleinfo) {
-                            if (usermoudleinfo.length) {
-                                var watchcount = 0;
-                                usermoudleinfo.forEach(function (usermoduleObj) {
-                                    if (usermoduleObj.videostatus !== "notwatched") {
-                                        watchcount++;
-                                    }
-                                    videoList[usermoduleObj.videoid].status = usermoduleObj.videostatus;
-                                });
-                                response.modules.push({"moduleid": module, "videolist": videoList});
-                                if (watchcount !== usermoudleinfo.length) {
-                                    deferred.resolve(response);
-                                }
-                            } else {
-                                deferred.reject({"name": username, "message": "No Video Info Found In Module"});
-                            }
-                        })
-                    }
-                });
+            doitpromise = doit(username, modules, response);
+            doitpromise.then(function (res) {
+                deferred.resolve(res);
+            }).catch(function (err) {
+                deferred.reject(err);
             });
         } else {
             deferred.reject({"name": username, "message": "invalid section provided"});
