@@ -123,3 +123,4 @@ function updateStatus(selectedCollection, id, moduleid, username) {
         });
     return deferred.promise;
 }
+
