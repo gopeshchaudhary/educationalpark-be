@@ -70,10 +70,9 @@ function findmodule(moduleid) {
 
 function updateStatus(selectedCollection, id, moduleid) {
     var deferred = Q.defer();
-   console.log(id);
     // fields to update
     var set = {
-        videostatus:'watched',
+        videostatus: 'watched',
         trndate: new Date().toISOString()
     };
     db.collection(selectedCollection).update({
@@ -121,3 +120,4 @@ function updateStatus(selectedCollection, id, moduleid) {
         });
     return deferred.promise;
 }
+
