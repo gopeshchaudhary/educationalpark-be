@@ -119,4 +119,3 @@ function updateStatus(selectedCollection, id, moduleid) {
             }
         });
     return deferred.promise;
-}
