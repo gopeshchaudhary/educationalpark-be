@@ -11,6 +11,7 @@ var db = mongo.db(config.connectionString, {
 var videoService = {};
 
 videoService.videoUpdateStatus = videoUpdateStatus;
+videoService.findmodule = findmodule;
 
 module.exports = videoService;
 // function for video update 
@@ -119,3 +120,4 @@ function updateStatus(selectedCollection, id, moduleid) {
             }
         });
     return deferred.promise;
+}

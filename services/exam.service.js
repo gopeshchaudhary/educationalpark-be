@@ -43,7 +43,7 @@ function getExamSet(moduleid) {
 }
 
 // function is for submit Exam and give result of module 
-function submitExam(testData) {                                // testData , moduleid , username
+function submitExam(testData) { // testData , moduleid , username
     var deferred = Q.defer();
     db.collection("examresmodules").find({
         'moduleid': testData.moduleid
@@ -82,54 +82,108 @@ function compareResult(response, request) {
                 }
             }
         }
-        var percentage = count * 100 / response.result.length;
-        if (percentage >= 60) {
-            status = 'pass';
-            deferred.resolve({
-                'totalResult': percentage,
-                'status': status
-            });
-        } else {
-            status = 'fail';
-            var modulePromise = videoService.findmodule(request.moduleid);
-            modulePromise.then(function (errorModule, responseModule) {
-                if (errorModule) deferred.reject(errorModule.name + ': ' + errorModule.message);
-                if (responseModule) {
-                    db.collection(responseModule.collection).find({
-                        'userid': request.username
-                    }).toArray(function (err, video) {
-                        if (err) deferred.reject(err.name + ': ' + err.message);
-                        if (video) {
-                            updateStatusPromise = updateStatus(responseModule.collection, status, percentage);
-                            updateStatusPromise.then(function (response) {
-                                deferred.resolve(response);
-                            }).catch(function (error) {
-                                deferred.reject(error);
-                            });
-                        } else {
-                            // aut  hentication failed
-                            deferred.reject({
-                                'videoid': body.videoid,
-                                'message': "there is no video regarding username"
-                            });
-                        }
-                    });
-                } else {
-                    deferred.reject({
-                        'videoid': request.moduleid,
-                        'message': "there is no module"
-                    });
-                }
-            })
 
+        examAttemptPromise = examAttempt(response, request.username, request.moduleid);
+        examAttemptPromise.then(function (attemptErr, attemptSuccess) {
+            console.log(attemptSuccess);
+            deferred.resolve(attemptSuccess);
+        });
 
-        }
 
     } else {
         deferred.reject({
             'error': 'question length is not proper'
         });
     }
+    return deferred.promise;
+}
+
+function examAttempt(response, username, moduleid) {
+    var deferred = Q.defer();
+    var set = {
+        trndate: new Date().toISOString
+    };
+    var setResult = {
+        result: 'P'
+    };
+    db.collection("exam_attempt").findOne({
+        'userid': username,
+        'moduleid': moduleid
+    }, function (err, examAttempt) {
+        if (examAttempt) {
+            db.collection("exam_attempt").update({
+                    attempt_time: examAttempt.attempt_time++
+                }, {
+                    $set: set
+                },
+                function (err, doc) {
+                    if (err) deferred.reject(err.name + ': ' + err.message);
+                    if (doc) {
+                        var percentage = count * 100 / response.result.length;
+                        if (percentage >= 60) {
+                            status = 'pass';
+                            db.collection("exam_result").findOne({
+                                'userid': username,
+                                'moduleid': moduleid
+                            }, function (err, examresult) {
+                                if (examresult) {
+                                    db.collection("exam_result").update({
+                                        $set: set
+                                    }, function (examResult, examResultSuccess) {
+                                        if (examResultSuccess) {
+                                            deferred.resolve({
+                                                'totalResult': percentage,
+                                                'status': status
+                                            });
+                                        }
+                                    });
+                                }
+                            });
+
+
+                        } else {
+                            status = 'fail';
+                            var modulePromise = videoService.findmodule(request.moduleid);
+                            modulePromise.then(function (errorModule, responseModule) {
+                                if (errorModule) deferred.reject(errorModule.name + ': ' + errorModule.message);
+                                if (responseModule) {
+                                    db.collection(responseModule.collection).find({
+                                        'userid': request.username
+                                    }).toArray(function (err, video) {
+                                        if (err) deferred.reject(err.name + ': ' + err.message);
+                                        if (video) {
+                                            updateStatusPromise = updateStatus(responseModule.collection, status, percentage);
+                                            updateStatusPromise.then(function (response) {
+                                                deferred.resolve(response);
+                                            }).catch(function (error) {
+                                                deferred.reject(error);
+                                            });
+                                        } else {
+                                            // aut  hentication failed
+                                            deferred.reject({
+                                                'videoid': body.videoid,
+                                                'message': "there is no video regarding username"
+                                            });
+                                        }
+                                    });
+                                } else {
+                                    deferred.reject({
+                                        'videoid': request.moduleid,
+                                        'message': "there is no module"
+                                    });
+                                }
+                            })
+
+
+                        }
+                    } else {
+                        deferred.reject({
+                            'error': 'Attempt Error'
+                        });
+                    }
+                });
+        }
+    });
     return deferred.promise;
 }
 
@@ -141,8 +195,9 @@ function updateStatus(collectionData, status, percentage) {
     };
     db.collection(collectionData).update({
             $set: set
+        }, {
+            multi: true
         },
-        {multi: true},
         function (err, doc) {
             if (err) deferred.reject(err.name + ': ' + err.message);
             if (doc) {
