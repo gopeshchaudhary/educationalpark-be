@@ -119,7 +119,7 @@ function filterme(response) {
             var watched = 0;
             var module = modules[key];
             var videolist = module.videolist;
-            if (!PassModules.indexOf(module.moduleid) > -1) {
+            if (PassModules.indexOf(module.moduleid) === -1) {
                 finalmodule = true;
             }
             for (var videokey in videolist) {
@@ -161,7 +161,7 @@ function getALlPassModules(username) {
 function groupBy(array, property) {
     var hash = [];
     for (var i = 0; i < array.length; i++) {
-        if (hash.indexOf(array[i][property]) > -1) {
+        if (hash.indexOf(array[i][property]) === -1) {
             hash.push(array[i][property]);
         }
     }
