@@ -23,19 +23,19 @@ function videoUpdateStatus(username, videoid, moduleid) {
         collectionData.then(function (res) {
             selectedCollection = res.collection;
             db.collection(selectedCollection).find({
-                'videoid': parseInt(videoid,10),
+                'videoid': parseInt(videoid, 10),
                 'userid': username
             }).toArray(function (err, video) {
                 if (err) deferred.reject(err.name + ': ' + err.message);
                 if (video) {
-                    updateStatusPromise = updateStatus(selectedCollection, video[0]._id, moduleid);
+                    updateStatusPromise = updateStatus(selectedCollection, video[0]._id, moduleid, username);
                     updateStatusPromise.then(function (response) {
                         deferred.resolve(response);
                     }).catch(function (error) {
                         deferred.reject(error);
                     });
                 } else {
-                    // aut  hentication failed
+                    // authentication failed
                     deferred.reject({
                         'videoid': videoid,
                         'message': "there is no video regarding username"
@@ -68,12 +68,11 @@ function findmodule(moduleid) {
     return deferred.promise;
 }
 
-function updateStatus(selectedCollection, id, moduleid) {
+function updateStatus(selectedCollection, id, moduleid, username) {
     var deferred = Q.defer();
-   console.log(id);
     // fields to update
     var set = {
-        videostatus:'watched',
+        videostatus: 'watched',
         trndate: new Date().toISOString()
     };
     db.collection(selectedCollection).update({
@@ -85,13 +84,16 @@ function updateStatus(selectedCollection, id, moduleid) {
             if (err) deferred.reject(err.name + ': ' + err.message);
             if (doc) {
                 db.collection("videorecord").find({
-                    'modulecode': moduleid,
+                    'modulecode': moduleid
                 }).toArray(function (err, res) {
                     if (err) deferred.reject(err.name + ': ' + err.message);
                     if (res) {
-                        db.collection(selectedCollection).find({'videostatus': 'watched'}).toArray(function (err, watchedVideo) {
+                        db.collection(selectedCollection).find({
+                            'userid': username,
+                            'videostatus': 'watched'
+                        }).toArray(function (err, watchedVideo) {
                             if (err) deferred.reject(err.name + ':' + err.message);
-                            if (watchedVideo.length === res.length) {
+                            if (parseInt(watchedVideo.length) === parseInt(res.length)) {
                                 deferred.resolve({
                                     videoStatus: "updated",
                                     allVideo: 'true'
@@ -121,3 +123,4 @@ function updateStatus(selectedCollection, id, moduleid) {
         });
     return deferred.promise;
 }
+

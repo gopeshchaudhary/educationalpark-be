@@ -45,20 +45,20 @@ function getExamSet(moduleid) {
 // function is for submit Exam and give result of module 
 function submitExam(testData) { // testData , moduleid , username
     var deferred = Q.defer();
-    db.collection("examresmodules").find({
+    db.collection("examresmodules").findOne({
         'moduleid': testData.moduleid
-    }).toArray(function (err, res) {
+    }, function (err, res) {
         if (err) deferred.reject(err.name + ': ' + err.message);
-        if (res && res[0] && res[0].moduleid) {
-            compareData = compareResult(res[0], testData);
-            compareData.then(function (response) {
+        if (res) {
+            compareDataPromise = compareResult(res, testData);
+            compareDataPromise.then(function (response) {
                 deferred.resolve(response);
             }).catch(function (error) {
                 deferred.reject(error);
             });
         } else {
             deferred.reject({
-                'name': req.moduleid,
+                'name': testData.username,
                 'message': 'there is no module'
             });
         }
@@ -70,26 +70,28 @@ function submitExam(testData) { // testData , moduleid , username
 function compareResult(response, request) {
     var deferred = Q.defer();
     var count = 0;
-    var percentage = 0;
-    var status = '';
     if (response.result.length === request.answerSheets.length) {
         for (var i = 0; i < response.result.length; i++) {
             if (request.answerSheets[i].answer === '') {
                 continue;
             } else {
-                if (request.answerSheets[i].id === response.result[i].id && answerKey[request.answerSheets[i].answer] === response.result[i].answer) {
+                if (parseInt(request.answerSheets[i].id) === parseInt(response.result[i].id) && answerKey[request.answerSheets[i].answer] === response.result[i].answer) {
                     count++;
                 }
             }
         }
+        examAttemptPromise = examAttempt(response, request.username, request.moduleid, count);
+        examAttemptPromise.then(function (attemptSuccess) {
+            if (attemptSuccess) {
+                deferred.resolve(attemptSuccess);
+            } else {
+                deferred.reject({
+                    'username': response.username,
+                    'error': 'FAILED TO SUBMIT EXAM'
+                });
+            }
 
-        examAttemptPromise = examAttempt(response, request.username, request.moduleid);
-        examAttemptPromise.then(function (attemptErr, attemptSuccess) {
-            console.log(attemptSuccess);
-            deferred.resolve(attemptSuccess);
         });
-
-
     } else {
         deferred.reject({
             'error': 'question length is not proper'
@@ -98,115 +100,104 @@ function compareResult(response, request) {
     return deferred.promise;
 }
 
-function examAttempt(response, username, moduleid) {
+function examinup(what, username, moduleid, attempt_time) {
     var deferred = Q.defer();
-    var set = {
-        trndate: new Date().toISOString
-    };
-    var setResult = {
-        result: 'P'
-    };
+    if (what === 'insert') {
+        db.collection("exam_attempt").insert({
+                "userid": username,
+                "attempt_time": attempt_time + 1,
+                "trndate": new Date().toISOString(),
+                "moduleid": moduleid,
+                "hash": bcrypt.hashSync(username, 10)
+            },
+            function (err, doc) {
+                if (err) deferred.reject(err.name + ': ' + err.message);
+                if (doc) {
+                    deferred.resolve(true);
+                } else {
+                    deferred.reject(false);
+                }
+            });
+    } else if (what === 'update') {
+        db.collection("exam_attempt").update({"userid": username, "moduleid": moduleid}, {
+                $set: {"trndate": new Date().toISOString(), "attempt_time": attempt_time + 1}
+            },
+            function (err, doc) {
+                if (err) deferred.reject(false);
+                if (doc) {
+                    deferred.resolve(true);
+                } else {
+                    deferred.reject(false);
+                }
+            });
+    }
+    return deferred.promise;
+}
+function examAttempt(response, username, moduleid, count) {
+    var percentage = 0;
+    var status = '';
+    var deferred = Q.defer();
     db.collection("exam_attempt").findOne({
         'userid': username,
         'moduleid': moduleid
     }, function (err, examAttempt) {
         if (examAttempt) {
-            db.collection("exam_attempt").update({
-                    attempt_time: examAttempt.attempt_time++
-                }, {
-                    $set: set
-                },
-                function (err, doc) {
-                    if (err) deferred.reject(err.name + ': ' + err.message);
-                    if (doc) {
-                        var percentage = count * 100 / response.result.length;
-                        if (percentage >= 60) {
-                            status = 'pass';
-                            db.collection("exam_result").findOne({
-                                'userid': username,
-                                'moduleid': moduleid
-                            }, function (err, examresult) {
-                                if (examresult) {
-                                    db.collection("exam_result").update({
-                                        $set: set
-                                    }, function (examResult, examResultSuccess) {
-                                        if (examResultSuccess) {
-                                            deferred.resolve({
-                                                'totalResult': percentage,
-                                                'status': status
-                                            });
-                                        }
-                                    });
-                                }
-                            });
-
-
-                        } else {
-                            status = 'fail';
-                            var modulePromise = videoService.findmodule(request.moduleid);
-                            modulePromise.then(function (errorModule, responseModule) {
-                                if (errorModule) deferred.reject(errorModule.name + ': ' + errorModule.message);
-                                if (responseModule) {
-                                    db.collection(responseModule.collection).find({
-                                        'userid': request.username
-                                    }).toArray(function (err, video) {
-                                        if (err) deferred.reject(err.name + ': ' + err.message);
-                                        if (video) {
-                                            updateStatusPromise = updateStatus(responseModule.collection, status, percentage);
-                                            updateStatusPromise.then(function (response) {
-                                                deferred.resolve(response);
-                                            }).catch(function (error) {
-                                                deferred.reject(error);
-                                            });
-                                        } else {
-                                            // aut  hentication failed
-                                            deferred.reject({
-                                                'videoid': body.videoid,
-                                                'message': "there is no video regarding username"
-                                            });
-                                        }
-                                    });
-                                } else {
-                                    deferred.reject({
-                                        'videoid': request.moduleid,
-                                        'message': "there is no module"
-                                    });
-                                }
-                            })
-
-
-                        }
-                    } else {
-                        deferred.reject({
-                            'error': 'Attempt Error'
+            exampromise = examinup('update', username, moduleid, examAttempt.attempt_time);
+        } else {
+            exampromise = examinup('insert', username, moduleid, 0);
+        }
+        exampromise.then(function (res) {
+            percentage = count * 100 / response.result.length;
+            if (percentage >= config.passmarks) {
+                status = 'PASS';
+                db.collection("exam_result").insert({
+                    "moduleid": moduleid,
+                    "userid": username,
+                    "result": status,
+                    "trndate": new Date().toISOString(),
+                    "hash": bcrypt.hashSync(username, 10)
+                }, function (examResult, examResultSuccess) {
+                    if (examResultSuccess) {
+                        deferred.resolve({
+                            'username': username,
+                            'totalResult': percentage,
+                            'status': status
                         });
                     }
                 });
-        }
-    });
-    return deferred.promise;
-}
-
-function updateStatus(collectionData, status, percentage) {
-    var deferred = Q.defer();
-    // fields to update
-    var set = {
-        videostatus: 'notwatched'
-    };
-    db.collection(collectionData).update({
-            $set: set
-        }, {
-            multi: true
-        },
-        function (err, doc) {
-            if (err) deferred.reject(err.name + ': ' + err.message);
-            if (doc) {
-                deferred.resolve({
-                    'totalResult': percentage,
-                    'status': status,
-                    allVideo: 'false'
-                });
+            } else {
+                status = 'FAIL';
+                var modulePromise = videoService.findmodule(moduleid);
+                modulePromise.then(function (responseModule) {
+                    if (responseModule) {
+                        db.collection(responseModule.collection).update({"userid": username}, {$set: {videostatus: 'notwatched'}}, {"multi": true}, function (err, response) {
+                            if (response) {
+                                deferred.resolve({
+                                    'username': username,
+                                    'totalResult': percentage,
+                                    'status': status
+                                });
+                            } else {
+                                deferred.reject({
+                                    'name': username,
+                                    'message': "Failed To Submit Test"
+                                });
+                            }
+                        });
+                    }
+                }).catch(function (errorModule) {
+                    deferred.reject({
+                        'videoid': request.moduleid,
+                        'message': "there is no moduleinformation found"
+                    });
+                })
             }
-        });
+        }).catch(function (err) {
+            deferred.reject({
+                'name': username,
+                'message': "Failed to Attempt Exam"
+            })
+        })
+    });
     return deferred.promise;
 }
