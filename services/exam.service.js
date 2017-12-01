@@ -81,11 +81,14 @@ function compareResult(response, request) {
             }
         }
         examAttemptPromise = examAttempt(response, request.username, request.moduleid, count);
-        examAttemptPromise.then(function (attemptErr, attemptSuccess) {
+        examAttemptPromise.then(function (attemptSuccess) {
             if (attemptSuccess) {
                 deferred.resolve(attemptSuccess);
             } else {
-                deferred.reject(attemptErr);
+                deferred.reject({
+                    'username': response.username,
+                    'error': 'FAILED TO SUBMIT EXAM'
+                });
             }
 
         });
