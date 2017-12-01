@@ -112,23 +112,24 @@ function filterme(response) {
     var deferred = Q.defer();
     modules = response.modules;
     var temp = [];
-    waitpromise = checkIfTestDone(response.user);
-    waitpromise.then(function (latestPassModule) {
+    waitpromise = getALlPassModules(response.user);
+    waitpromise.then(function (PassModules) {
         var finalmodule = false;
-        var lastpass = false;
         for (var key in modules) {
+            var watched = 0;
             var module = modules[key];
             var videolist = module.videolist;
-            if (latestPassModule && latestPassModule === module.moduleid) {
-                lastpass = true;
-            } else
-                lastpass = true;
+            if (!PassModules.indexOf(module.moduleid) > -1) {
+                finalmodule = true;
+            }
             for (var videokey in videolist) {
                 var videoinfo = videolist[videokey];
-                if (lastpass || videoinfo.status === 'notwatched') {
-                    finalmodule = true;
-                    break;
+                if (videoinfo.status !== 'notwatched') {
+                    watched++;
                 }
+            }
+            if (finalmodule && watched === Object.keys(videolist).length) {
+                module['taketest'] = 'true';
             }
             temp.push(module);
             if (finalmodule)
@@ -142,18 +143,29 @@ function filterme(response) {
     return deferred.promise;
 }
 
-function checkIfTestDone(username) {
+function getALlPassModules(username) {
     var deferred = Q.defer();
     db.collection("exam_result").find({
         "userid": username
-    }).sort({_id: -1}).limit(1).toArray(function (examResulterr, examResult) {
+    }, {"moduleid": 1}).sort({_id: -1}).toArray(function (examResulterr, examResult) {
         if (examResult.length) {
-            deferred.resolve(examResult[0].moduleid);
+            filterModules = groupBy(examResult, 'moduleid');
+            deferred.resolve(filterModules);
         } else {
-            deferred.resolve(false);
+            deferred.resolve([]);
         }
     });
     return deferred.promise;
+}
+
+function groupBy(array, property) {
+    var hash = [];
+    for (var i = 0; i < array.length; i++) {
+        if (hash.indexOf(array[i][property]) > -1) {
+            hash.push(array[i][property]);
+        }
+    }
+    return hash;
 }
 
 function doit(username, modules, response) {
