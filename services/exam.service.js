@@ -75,7 +75,7 @@ function compareResult(response, request) {
             if (request.answerSheets[i].answer === '') {
                 continue;
             } else {
-                if (request.answerSheets[i].id === parseInt(response.result[i].id) && answerKey[request.answerSheets[i].answer] === response.result[i].answer) {
+                if (parseInt(request.answerSheets[i].id) === parseInt(response.result[i].id) && answerKey[request.answerSheets[i].answer] === response.result[i].answer) {
                     count++;
                 }
             }
@@ -156,24 +156,23 @@ function examAttempt(response, username, moduleid, count) {
                 }, function (examResult, examResultSuccess) {
                     if (examResultSuccess) {
                         deferred.resolve({
+                            'username': username,
                             'totalResult': percentage,
-                            'status': status,
-                            'allVideo': 'false'
+                            'status': status
                         });
                     }
                 });
             } else {
                 status = 'FAIL';
-                console.log(moduleid);
                 var modulePromise = videoService.findmodule(moduleid);
                 modulePromise.then(function (responseModule) {
                     if (responseModule) {
                         db.collection(responseModule.collection).update({"userid": username}, {$set: {videostatus: 'notwatched'}}, {"multi": true}, function (err, response) {
                             if (response) {
                                 deferred.resolve({
+                                    'username': username,
                                     'totalResult': percentage,
-                                    'status': status,
-                                    'allVideo': 'false'
+                                    'status': status
                                 });
                             } else {
                                 deferred.reject({
