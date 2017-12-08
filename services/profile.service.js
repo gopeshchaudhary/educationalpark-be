@@ -167,6 +167,42 @@ function groupBy(array, property) {
     }
     return hash;
 }
+function getVideoValues(array, property) {
+    var filterArr = [];
+    for (var i = 0; i < array.length; i++) {
+        if (filterArr.indexOf(array[i][property]) === -1) {
+            filterArr.push(array[i][property]);
+        }
+    }
+    return filterArr;
+}
+
+function refreshVideoList(videos, usermoduleinfo) {
+    var deferred = Q.defer();
+
+    var modvideoids = groupBy(usermoduleinfo, 'videoid');
+    var videoids = groupBy(videos, 'videoID');
+
+    var diff = videoids.filter(function (x) {
+        return modvideoids.indexOf(x) < 0
+    });
+    console.log('modvideos', modvideoids);
+    console.log('videos', videoids);
+    console.log('diff', diff);
+    if (diff.length > 0) {
+
+    } else {
+        getVideoValues(videos,diff);
+        console.log(videos);
+        console.log(usermoduleinfo);
+        deferred.resolve(usermoduleinfo);
+    }
+
+    // }else{
+
+    // }
+    return deferred.promise;
+}
 
 function doit(username, modules, response) {
     var deferred = Q.defer();
@@ -194,22 +230,32 @@ function doit(username, modules, response) {
                     videoList[videoObj.videoID] = {};
                     videoList[videoObj.videoID].url = videoObj.path_video;
                 });
-                db.collection(collection).find({"userid": username}).sort({"videoid": 1}).toArray(function (err, usermoudleinfo) {
-                    if (usermoudleinfo.length) {
-                        usermoudleinfo.forEach(function (usermoduleObj) {
-                            videoList[usermoduleObj.videoid].status = usermoduleObj.videostatus;
-                        });
-                        response.modules[module.match(regex)[1]] = {"moduleid": module, "videolist": videoList};
-                        complete();
-                    } else {
+
+                db.collection(collection).find({"userid": username}).sort({"videoid": 1}).toArray(function (err, usermoduleinfo) {
+
+                    refreshVideoList(videos, usermoduleinfo).then(function (usermoduleinfo) {
+
+                        if (usermoduleinfo.length) {
+                            usermoduleinfo.forEach(function (usermoduleObj) {
+                                videoList[usermoduleObj.videoid].status = usermoduleObj.videostatus;
+                            });
+                            response.modules[module.match(regex)[1]] = {"moduleid": module, "videolist": videoList};
+                            complete();
+                        } else {
+                            deferred.reject({"name": username, "message": "No Video Info Found In Module"});
+                        }
+                    }).catch(function (error) {
                         deferred.reject({"name": username, "message": "No Video Info Found In Module"});
-                    }
+                    });
+
+
                 });
             }
         });
     });
     return deferred.promise;
 }
+
 
 function getDashboard(username, sectionid) {
     var deferred = Q.defer();
