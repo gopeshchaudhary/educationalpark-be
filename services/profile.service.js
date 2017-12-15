@@ -167,17 +167,36 @@ function groupBy(array, property) {
     }
     return hash;
 }
-function getVideoValues(array, property) {
+function getVideoValues(videosarr, diffidsarr, property, username, moudulecollection) {
     var filterArr = [];
-    for (var i = 0; i < array.length; i++) {
-        if (filterArr.indexOf(array[i][property]) === -1) {
-            filterArr.push(array[i][property]);
+    for (var i = 0; i < diffidsarr.length; i++) {
+        for (var j = 0; j < videosarr.length; j++) {
+            console.log(parseInt(diffidsarr[i]), parseInt(videosarr[j][property]));
+            if (parseInt(diffidsarr[i]) === parseInt(videosarr[j][property])) {
+                var hash = bcrypt.hashSync(username + videosarr[i].videoID, 10);
+                var trndate = new Date().toISOString();
+                filterArr.push({
+                    "videoid": videosarr[i].videoID,
+                    "userid": username,
+                    "videostatus": "notwatched",
+                    "trndate": trndate,
+                    "hash": hash
+                });
+                db.collection(moudulecollection).insert({
+                    "videoid": videosarr[i].videoID,
+                    "userid": username,
+                    "videostatus": "notwatched",
+                    "trndate": trndate,
+                    "hash": hash
+                });
+            }
         }
     }
+    console.log(filterArr);
     return filterArr;
 }
 
-function refreshVideoList(videos, usermoduleinfo) {
+function refreshVideoList(videos, usermoduleinfo, username, modulecollection) {
     var deferred = Q.defer();
 
     var modvideoids = groupBy(usermoduleinfo, 'videoid');
@@ -186,21 +205,14 @@ function refreshVideoList(videos, usermoduleinfo) {
     var diff = videoids.filter(function (x) {
         return modvideoids.indexOf(x) < 0
     });
-    console.log('modvideos', modvideoids);
-    console.log('videos', videoids);
-    console.log('diff', diff);
     if (diff.length > 0) {
-
+        console.log('YES difference', diff);
+        usermoduleinfo = usermoduleinfo.concat(getVideoValues(videos, diff, 'videoID', username, modulecollection));
+        deferred.resolve(usermoduleinfo);
     } else {
-        getVideoValues(videos,diff);
-        console.log(videos);
-        console.log(usermoduleinfo);
+        console.log(' NO difference', modulecollection, username);
         deferred.resolve(usermoduleinfo);
     }
-
-    // }else{
-
-    // }
     return deferred.promise;
 }
 
@@ -233,7 +245,7 @@ function doit(username, modules, response) {
 
                 db.collection(collection).find({"userid": username}).sort({"videoid": 1}).toArray(function (err, usermoduleinfo) {
 
-                    refreshVideoList(videos, usermoduleinfo).then(function (usermoduleinfo) {
+                    refreshVideoList(videos, usermoduleinfo, username, collection).then(function (usermoduleinfo) {
 
                         if (usermoduleinfo.length) {
                             usermoduleinfo.forEach(function (usermoduleObj) {
