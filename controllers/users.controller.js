@@ -13,7 +13,7 @@ function authenticate(req, res) {
         res.status(200).send('{"error" : "Required params not found" }');
         return false;
     }
-    userService.authenticate(req.body.username, req.body.password)
+    userService.authenticate(req.body.username, req.body.password, req.body.type)
         .then(function (user) {
             if (user) {
                 // authentication successful
