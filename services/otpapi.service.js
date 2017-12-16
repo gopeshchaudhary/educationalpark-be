@@ -26,31 +26,32 @@ function generate(username, mobileno) {
         if (user) {
             // user exists
             deferred.reject({"name": username, "message": "user already exists"});
-        }
-    });
-    otpresponse = makeAPICall(otp, mobileno);
-    otpresponse.then(function (response) {
-        db.otp.insert({
-            username: username,
-            mobileno: mobileno,
-            otp: otp,
-            timestamp: new Date().toISOString(),
-            apiresponse: response
-        }, function (err, success) {
-            if (err) deferred.reject(err.name + ': ' + err.message);
-            if (success) {
-                // authentication successful
-                deferred.resolve({
+        } else {
+            otpresponse = makeAPICall(otp, mobileno);
+            otpresponse.then(function (response) {
+                db.otp.insert({
                     username: username,
-                    otp: "success"
+                    mobileno: mobileno,
+                    otp: otp,
+                    timestamp: new Date().toISOString(),
+                    apiresponse: response
+                }, function (err, success) {
+                    if (err) deferred.reject(err.name + ': ' + err.message);
+                    if (success) {
+                        // authentication successful
+                        deferred.resolve({
+                            username: username,
+                            otp: "success"
+                        });
+                    } else {
+                        // otp failed
+                        deferred.resolve();
+                    }
                 });
-            } else {
-                // otp failed
-                deferred.resolve();
-            }
-        });
-    }).catch(function (err) {
-        deferred.reject({"name": username, "message": err})
+            }).catch(function (err) {
+                deferred.reject({"name": username, "message": err})
+            });
+        }
     });
     return deferred.promise;
 }
@@ -116,39 +117,47 @@ function makeAPICall(otp, mobileno) {
 }
 function sendmail(username, mobileno, email) {
     var deferred = Q.defer();
-    emailresponse = sendMailAPI(username, mobileno, email);
-    emailresponse.then(function (response) {
-        db.collection('users').insert({
-            username: username,
-            phoneNo: mobileno,
-            emailID: email,
-            timestamp: new Date().toISOString(),
-            hash: bcrypt.hashSync(response.password, 10)
-        }, function (err, success) {
-            if (err) deferred.reject(err.name + ': ' + err.message);
-            if (success) {
-                deferred.resolve({
+    db.collection('users').findOne({username: username}, function (err, user) {
+        if (user) {
+            // user exists
+            deferred.reject({"name": username, "message": "user already exists"});
+        } else {
+            emailresponse = sendMailAPI(username, mobileno, email);
+            emailresponse.then(function (response) {
+                db.collection('users').insert({
                     username: username,
-                    emailsend: "success"
+                    phoneNo: mobileno,
+                    emailID: email,
+                    timestamp: new Date().toISOString(),
+                    hash: bcrypt.hashSync(response.password, 10)
+                }, function (err, success) {
+                    if (err) deferred.reject(err.name + ': ' + err.message);
+                    if (success) {
+                        deferred.resolve({
+                            username: username,
+                            emailsend: "success"
+                        });
+                    } else {
+                        deferred.resolve();
+                    }
                 });
-            } else {
-                deferred.resolve();
-            }
-        });
-    }).catch(function (err) {
-        deferred.reject({"name": username, "message": err})
+            }).catch(function (err) {
+                deferred.reject({"name": username, "message": err})
+            });
+        }
     });
+
     return deferred.promise;
 }
 function sendMailAPI(username, mobileno, email) {
     var deferred = Q.defer();
     var randomstring = Math.random().toString(36).slice(-8);
-    var content = " Hello " + username + ",\n Thanks for registering on Edupark , Your Mobile Number is " + mobileno + " . \nYour password is : " + randomstring +" \n Enjoy our services.";
+    var content = " Hello " + username + ",\n Thanks for registering on Edupark , Your Mobile Number is " + mobileno + " . \nYour password is : " + randomstring + " \n Enjoy our services.";
     request.post(
         config.emailservice,
         {
             json: {
-                "content": content ,
+                "content": content,
                 "emailId": email,
             }
         },
