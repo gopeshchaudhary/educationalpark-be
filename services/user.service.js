@@ -22,17 +22,22 @@ module.exports = service;
 function authenticate(username, password, type) {
     var deferred = Q.defer();
     if (type === 'admin') {
-        if (username === 'eduparkadmin' && password === 'adminedupark') {
-            deferred.resolve({
-                _id: user._id,
-                username: 'edupark',
-                firstName: 'edupark',
-                lastName: 'edupark',
-                token: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI1YTFlOThkOTZjYzFmYjdlN2Q1MDNkYzgiLCJpYXQiOjE1MTM0MTY2MzJ9.g7jvktnI5LE5jI6Vfjv7BEWx454yAbdXEmTtWaW57ws'
-            });
-        } else {
-            deferred.resolve();
-        }
+        db.collection('adminusers').findOne({username: username}, function (err, user) {
+            if (err) deferred.reject(err.name + ': ' + err.message);
+            if (user && bcrypt.compareSync(password, user.hash)) {
+                // admin authentication successful
+                deferred.resolve({
+                    _id: user._id,
+                    username: user.username,
+                    firstName: user.firstName,
+                    lastName: user.lastName,
+                    token: jwt.sign({sub: user._id}, config.secret)
+                });
+            } else {
+                // authentication failed
+                deferred.resolve();
+            }
+        });
     }
     db.users.findOne({username: username}, function (err, user) {
         if (err) deferred.reject(err.name + ': ' + err.message);
