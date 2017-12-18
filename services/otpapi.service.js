@@ -29,12 +29,14 @@ function generate(username, mobileno) {
             deferred.reject({"name": username, "message": "user already exists"});
         } else {
             otpresponse = makeAPICall(otp, mobileno);
+            var dte = new Date();
+            dte.setTime(dte.getTime() + (dte.getTimezoneOffset() + 330) * 60 * 1000);
             otpresponse.then(function (response) {
                 db.otp.insert({
                     username: username,
                     mobileno: mobileno,
                     otp: otp,
-                    timestamp: new Date().toISOString(),
+                    timestamp: dte.toLocaleString(),
                     apiresponse: response
                 }, function (err, success) {
                     if (err) deferred.reject(err.name + ': ' + err.message);
@@ -124,12 +126,14 @@ function sendmail(username, mobileno, email) {
             deferred.reject({"name": username, "message": "user already exists"});
         } else {
             emailresponse = sendMailAPI(username, mobileno, email);
+            var dte = new Date();
+            dte.setTime(dte.getTime() + (dte.getTimezoneOffset() + 330) * 60 * 1000);
             emailresponse.then(function (response) {
                 db.collection('users').insert({
                     username: username,
                     phoneNo: mobileno,
                     emailID: email,
-                    timestamp: new Date().toISOString(),
+                    timestamp: dte.toLocaleString(),
                     hash: bcrypt.hashSync(response.password, 10)
                 }, function (err, success) {
                     if (err) deferred.reject(err.name + ': ' + err.message);
@@ -150,12 +154,12 @@ function sendmail(username, mobileno, email) {
 
     return deferred.promise;
 }
-function sendMailAPI(username, mobileno, email , reset) {
+function sendMailAPI(username, mobileno, email, reset) {
     var deferred = Q.defer();
     var randomstring = Math.random().toString(36).slice(-8);
-    if(reset){
+    if (reset) {
         var content = " Hello " + username + ",\n Greetings from Edupark..!!\n We have successfully reset your password. \nYour password is : " + randomstring + " \n Enjoy our services.";
-    }else {
+    } else {
         var content = " Hello " + username + ",\n Thanks for registering on Edupark , Your Mobile Number is " + mobileno + " . \nYour password is : " + randomstring + " \n Enjoy our services.";
     }
     request.post(

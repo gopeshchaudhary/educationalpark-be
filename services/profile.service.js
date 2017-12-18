@@ -93,13 +93,15 @@ function initProfile(username) {
         modules.forEach(function (moduleObj) {
             var module = moduleObj.moduleid;
             var collection = moduleObj.collection;
+            var dte = new Date();
+            dte.setTime(dte.getTime() + (dte.getTimezoneOffset() + 330) * 60 * 1000);
             db.collection('videorecord').find({"modulecode": module}).toArray(function (err, videos) {
                 videos.forEach(function (videoObj) {
                     db.collection(collection).insert({
                         "videoid": videoObj.videoID,
                         "userid": username,
                         "videostatus": "notwatched",
-                        "trndate": new Date().toISOString(),
+                        "trndate": dte.toLocaleString(),
                         "hash": bcrypt.hashSync(username + videoObj.videoID, 10)
                     });
                 })
@@ -176,7 +178,9 @@ function getVideoValues(videosarr, diffidsarr, property, username, moudulecollec
             console.log(parseInt(diffidsarr[i]), parseInt(videosarr[j][property]));
             if (parseInt(diffidsarr[i]) === parseInt(videosarr[j][property])) {
                 var hash = bcrypt.hashSync(username + videosarr[i].videoID, 10);
-                var trndate = new Date().toISOString();
+                var dte = new Date();
+                dte.setTime(dte.getTime() + (dte.getTimezoneOffset() + 330) * 60 * 1000);
+                var trndate = dte.toLocaleString();
                 filterArr.push({
                     "videoid": videosarr[i].videoID,
                     "userid": username,
@@ -312,10 +316,12 @@ function resetPassword(username, emailID) {
     db.users.findOne({'username': username}, function (err, user) {
         if (err) deferred.reject(err.name + ':' + err.message);
         if (user && user.emailID === emailID) {
+            var dte = new Date();
+            dte.setTime(dte.getTime() + (dte.getTimezoneOffset() + 330) * 60 * 1000);
             otpservice.sendMailAPI(username, user.phoneNo, emailID, true).then(function (response) {
                 db.collection('users').update({'username': username, 'emailID': emailID}, {
                     $set: {
-                        'timestamp': new Date().toISOString(),
+                        'timestamp': dte.toLocaleString(),
                         'hash': bcrypt.hashSync(response.password, 10)
                     }
                 }, {"multi": true}, function (err, success) {

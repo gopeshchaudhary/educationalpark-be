@@ -30,10 +30,10 @@ app.use('/exam', require('./controllers/exam.controller'));
 app.use('/auth', require('./controllers/auth.controller'));
 app.use('/video', require('./controllers/video.controller'));
 app.use('/profile', require('./controllers/userProfile.controller'));
-app.use('/'+md5('admin'+(new Date).getDate()), require('./controllers/admin.controller'));   // DYNAMIC CONTROLLER FOR ADMIN
+app.use('/' + md5('admin' + (new Date).getDate()), require('./controllers/admin.controller'));   // DYNAMIC CONTROLLER FOR ADMIN
 
 // start server
-var port = process.env.npm  === 'production' ? 80 : 4000;
+var port = process.env.npm === 'production' ? 80 : 4000;
 var server = app.listen(port, function () {
     console.log('Server listening on port ' + port);
 });

@@ -9,7 +9,7 @@ router.post('/authenticate', authenticate);
 module.exports = router;
 
 function authenticate(req, res) {
-    if(!req.body.username || !req.body.password){
+    if (!req.body.username || !req.body.password) {
         res.status(200).send('{"error" : "Required params not found" }');
         return false;
     }

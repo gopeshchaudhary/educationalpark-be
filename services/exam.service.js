@@ -103,10 +103,12 @@ function compareResult(response, request) {
 function examinup(what, username, moduleid, attempt_time) {
     var deferred = Q.defer();
     if (what === 'insert') {
+        var dte = new Date();
+        dte.setTime(dte.getTime() + (dte.getTimezoneOffset() + 330) * 60 * 1000);
         db.collection("exam_attempt").insert({
                 "userid": username,
                 "attempt_time": attempt_time + 1,
-                "trndate": new Date().toISOString(),
+                "trndate": dte.toLocaleString(),
                 "moduleid": moduleid,
                 "hash": bcrypt.hashSync(username, 10)
             },
@@ -119,8 +121,10 @@ function examinup(what, username, moduleid, attempt_time) {
                 }
             });
     } else if (what === 'update') {
+        var dte = new Date();
+        dte.setTime(dte.getTime() + (dte.getTimezoneOffset() + 330) * 60 * 1000);
         db.collection("exam_attempt").update({"userid": username, "moduleid": moduleid}, {
-                $set: {"trndate": new Date().toISOString(), "attempt_time": attempt_time + 1}
+                $set: {"trndate": dte.toLocaleString(), "attempt_time": attempt_time + 1}
             },
             function (err, doc) {
                 if (err) deferred.reject(false);
@@ -150,11 +154,13 @@ function examAttempt(response, username, moduleid, count) {
             percentage = count * 100 / response.result.length;
             if (percentage >= config.passmarks) {
                 status = 'PASS';
+                var dte = new Date();
+                dte.setTime(dte.getTime() + (dte.getTimezoneOffset() + 330) * 60 * 1000);
                 db.collection("exam_result").insert({
                     "moduleid": moduleid,
                     "userid": username,
                     "result": status,
-                    "trndate": new Date().toISOString(),
+                    "trndate": dte.toLocaleString(),
                     "hash": bcrypt.hashSync(username, 10)
                 }, function (examResult, examResultSuccess) {
                     if (examResultSuccess) {

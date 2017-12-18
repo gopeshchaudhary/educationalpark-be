@@ -71,9 +71,11 @@ function findmodule(moduleid) {
 function updateStatus(selectedCollection, id, moduleid, username) {
     var deferred = Q.defer();
     // fields to update
+    var dte = new Date();
+    dte.setTime(dte.getTime() + (dte.getTimezoneOffset() + 330) * 60 * 1000);
     var set = {
         videostatus: 'watched',
-        trndate: new Date().toISOString()
+        trndate: dte.toLocaleString()
     };
     db.collection(selectedCollection).update({
             _id: mongo.helper.toObjectID(id)
