@@ -18,6 +18,7 @@ var otpservice = {};
 otpservice.generate = generate;
 otpservice.validate = validate;
 otpservice.sendmail = sendmail;
+otpservice.sendMailAPI = sendMailAPI;
 
 module.exports = otpservice;
 function generate(username, mobileno) {

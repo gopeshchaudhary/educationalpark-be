@@ -8,6 +8,7 @@ var profileService = require('services/profile.service');
 router.post('/generate', generate);
 router.post('/verify', verify);
 router.post('/sendmail', sendmail);
+router.post('/reset', resetPassword);
 
 module.exports = router;
 
@@ -54,4 +55,22 @@ function sendmail(req, res) {   // username , mobileno , email
         .catch(function (err) {
             res.status(400).send(err);
         });
+}
+
+function resetPassword(req, res) {      // username , emailid
+    if (!req.body.username || !req.body.emailID) {
+        res.status(200).send('{"error" : "Required params not found" }');
+        return false;
+    }
+    profileService.resetPassword(req.body.username, req.body.emailID).then(function (user) {
+        if (user) {
+            // authentication successful
+            res.send(user);
+        } else {
+            // authentication failed
+            res.status(400).send('Username or EmailID is incorrect');
+        }
+    }).catch(function (err) {
+        res.status(400).send(err);
+    });
 }

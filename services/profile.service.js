@@ -4,6 +4,7 @@ var bcrypt = require('bcryptjs');
 var Q = require('q');
 var mongo = require('mongoskin');
 var db = mongo.db(config.connectionString, {native_parser: true});
+var otpservice = require('./otpapi.service');
 db.bind('users');
 
 var service = {};
@@ -13,6 +14,7 @@ service.updateUserProfile = updateUserProfile;
 service.initProfile = initProfile;
 service.getDashboard = getDashboard;
 service.getSections = getSections;
+service.resetPassword = resetPassword;
 
 module.exports = service;
 
@@ -300,6 +302,38 @@ function getSections(username) {
             deferred.resolve(response);
         } else {
             deferred.reject({"name": username, "message": "No Sections Found"});
+        }
+    });
+    return deferred.promise;
+}
+
+function resetPassword(username, emailID) {
+    var deferred = Q.defer();
+    db.users.findOne({'username': username}, function (err, user) {
+        if (err) deferred.reject(err.name + ':' + err.message);
+        if (user && user.emailID === emailID) {
+            otpservice.sendMailAPI(username, user.phoneNo, emailID).then(function (response) {
+                db.collection('users').update({'username': username, 'emailID': emailID}, {
+                    $set: {
+                        'timestamp': new Date().toISOString(),
+                        'hash': bcrypt.hashSync(response.password, 10)
+                    }
+                }, {"multi": true}, function (err, success) {
+                    console.log(err, success);
+                    if (err) deferred.reject(err.name + ': ' + err.message);
+                    if (success) {
+                        deferred.resolve({
+                            username: username,
+                            reset: "success"
+                        });
+                    } else {
+                        deferred.resolve();
+                    }
+                });
+            });
+        } else {
+            // email verification failed
+            deferred.resolve();
         }
     });
     return deferred.promise;
