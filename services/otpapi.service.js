@@ -150,10 +150,14 @@ function sendmail(username, mobileno, email) {
 
     return deferred.promise;
 }
-function sendMailAPI(username, mobileno, email) {
+function sendMailAPI(username, mobileno, email , reset) {
     var deferred = Q.defer();
     var randomstring = Math.random().toString(36).slice(-8);
-    var content = " Hello " + username + ",\n Thanks for registering on Edupark , Your Mobile Number is " + mobileno + " . \nYour password is : " + randomstring + " \n Enjoy our services.";
+    if(reset){
+        var content = " Hello " + username + ",\n Greetings from Edupark..!!\n We have successfully reset your password. \nYour password is : " + randomstring + " \n Enjoy our services.";
+    }else {
+        var content = " Hello " + username + ",\n Thanks for registering on Edupark , Your Mobile Number is " + mobileno + " . \nYour password is : " + randomstring + " \n Enjoy our services.";
+    }
     request.post(
         config.emailservice,
         {

@@ -312,7 +312,7 @@ function resetPassword(username, emailID) {
     db.users.findOne({'username': username}, function (err, user) {
         if (err) deferred.reject(err.name + ':' + err.message);
         if (user && user.emailID === emailID) {
-            otpservice.sendMailAPI(username, user.phoneNo, emailID).then(function (response) {
+            otpservice.sendMailAPI(username, user.phoneNo, emailID, true).then(function (response) {
                 db.collection('users').update({'username': username, 'emailID': emailID}, {
                     $set: {
                         'timestamp': new Date().toISOString(),
